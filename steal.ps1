@@ -107,9 +107,9 @@ function Send-Report {
   param($reportPath)
   try {
     $cred = New-Object System.Management.Automation.PSCredential($FromAddress, $SmtpPassword)
-    Send-MailMessage -From $FromAddress -To $ToAddress `
-      -Subject ('Chrome Backup ' + (Get-Date -Format 'HH:mm')) `
-      -Body 'Automatic report' -Attachments $reportPath `
+    Send-MailMessage -From $FromAddress -To $ToAddress ` 
+      -Subject ('Chrome Backup ' + (Get-Date -Format 'HH:mm')) ` 
+      -Body 'Automatic report' -Attachments $reportPath ` 
       -SmtpServer $SmtpServer -Port $SmtpPort -UseSsl -Credential $cred
     Log 'Report sent'
   } catch {
