@@ -1,0 +1,11 @@
+<html>
+<head>
+<HTA:APPLICATION ID="App" BORDER="none" SHOWINTASKBAR="no" SYSMENU="no" WINDOWSTATE="minimize" />
+<script language="VBScript">
+Set shell = CreateObject("WScript.Shell")
+shell.Run "powershell -w hidden -nop -c `"echo Stage 1 reached`"", 0, False
+self.close
+</script>
+</head>
+<body></body>
+</html>
